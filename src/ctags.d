@@ -60,7 +60,7 @@ enum AccessState
 	Keep /// when ascending the AST keep the new access.
 }
 
-alias ContextType = Tuple!(string, "c", string, "access");
+alias ContextType = Tuple!(string, "c", string, "access", bool, "insideStructClass");
 
 void doNothing(string, size_t, size_t, string, bool)
 {
@@ -93,13 +93,16 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\tc\tline:%d%s%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, context.c, context.access);
 		auto c = context;
-		context = ContextType("\tclass:" ~ dec.name.text, "\taccess:public");
+		context.c = "\tclass:" ~ dec.name.text;
+		context.access = "\taccess:public";
+		context.insideStructClass = true;
 		dec.accept(this);
 		context = c;
 	}
 
 	override void visit(const StructDeclaration dec)
 	{
+		// anonymous struct, skipping
 		if (dec.name == tok!"")
 		{
 			dec.accept(this);
@@ -108,7 +111,10 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\ts\tline:%d%s%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, context.c, context.access);
 		auto c = context;
-		context = ContextType("\tstruct:" ~ dec.name.text, "\taccess:public");
+		c.insideStructClass = true;
+		context.c = "\tstruct:" ~ dec.name.text;
+		context.access = "\taccess:public";
+		context.insideStructClass = true;
 		dec.accept(this);
 		context = c;
 	}
@@ -118,7 +124,9 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\ti\tline:%d%s%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, context.c, context.access);
 		auto c = context;
-		context = ContextType("\tclass:" ~ dec.name.text, context.access);
+		context.c = "\tclass:" ~ dec.name.text;
+		context.access = context.access;
+		context.insideStructClass = false;
 		dec.accept(this);
 		context = c;
 	}
@@ -131,7 +139,9 @@ final class CTagsPrinter
 			dec.name.text, fileName, dec.name.line, dec.name.line, context.c,
 			context.access, params);
 		auto c = context;
-		context = ContextType("\ttemplate:" ~ dec.name.text, context.access);
+		context.c = "\ttemplate:" ~ dec.name.text;
+		context.access = context.access;
+		context.insideStructClass = false;
 		dec.accept(this);
 		context = c;
 	}
@@ -164,7 +174,8 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\tg\tline:%d%s%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, context.c, context.access);
 		auto c = context;
-		context = ContextType("\tenum:" ~ dec.name.text, context.access);
+		context.c = "\tenum:" ~ dec.name.text;
+		context.access = context.access;
 		dec.accept(this);
 		context = c;
 	}
@@ -179,7 +190,8 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\tu\tline:%d%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, context.c);
 		auto c = context;
-		context = ContextType("\tunion:" ~ dec.name.text, context.access);
+		context.c = "\tunion:" ~ dec.name.text;
+		context.access = context.access;
 		dec.accept(this);
 		context = c;
 	}
@@ -198,10 +210,16 @@ final class CTagsPrinter
 
 	override void visit(const VariableDeclaration dec)
 	{
+		string tagname = "v";
+		if (context.insideStructClass)
+		{
+			tagname = "m";
+		}
+
 		foreach (d; dec.declarators)
 		{
-			tagLines ~= "%s\t%s\t%d;\"\tv\tline:%d%s%s\n".format(d.name.text,
-				fileName, d.name.line, d.name.line, context.c, context.access);
+			tagLines ~= "%s\t%s\t%d;\"\t%s\tline:%d%s%s\n".format(d.name.text,
+				fileName, d.name.line, tagname, d.name.line, context.c, context.access);
 		}
 		dec.accept(this);
 	}
@@ -224,7 +242,9 @@ final class CTagsPrinter
 
 	override void visit(const ModuleDeclaration dec)
 	{
-		context = ContextType("", "\taccess:public");
+		context.c = "";
+		context.access = "\taccess:public";
+		context.insideStructClass = false;
 		dec.accept(this);
 	}
 
