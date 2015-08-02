@@ -124,7 +124,6 @@ final class CTagsPrinter
 		tagLines ~= "%s\t%s\t%d;\"\ts\tline:%d%s%s\n".format(dec.name.text,
 			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 		auto c = context;
-		c.insideStructClass = true;
 		context.s = extendScope(context.s, "struct", dec.name.text);
 		context.access = "\taccess:public";
 		context.insideStructClass = true;
