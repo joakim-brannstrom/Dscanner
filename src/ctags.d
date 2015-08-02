@@ -60,10 +60,23 @@ enum AccessState
 	Keep /// when ascending the AST keep the new access.
 }
 
-alias ContextType = Tuple!(string, "c", string, "access", bool, "insideStructClass");
+alias ScopeType = Tuple!(string, "type", string[], "path");
+alias ContextType = Tuple!(ScopeType, "s", string, "access", bool, "insideStructClass");
 
 void doNothing(string, size_t, size_t, string, bool)
 {
+}
+
+ScopeType extendScope(ScopeType s0, string type, string path) {
+    return ScopeType(type, s0.path ~ path);
+}
+
+string scopeToString(ScopeType s) {
+    import std.array : join;
+    if (s.type.length == 0)
+        return "";
+
+    return "\t" ~ s.type ~ ":" ~ join(s.path, ".");
 }
 
 string paramsToString(Dec)(const Dec dec)
@@ -91,9 +104,9 @@ final class CTagsPrinter
 	override void visit(const ClassDeclaration dec)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\tc\tline:%d%s%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c, context.access);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 		auto c = context;
-		context.c = "\tclass:" ~ dec.name.text;
+		context.s = extendScope(context.s, "class", dec.name.text);
 		context.access = "\taccess:public";
 		context.insideStructClass = true;
 		dec.accept(this);
@@ -109,10 +122,10 @@ final class CTagsPrinter
 			return;
 		}
 		tagLines ~= "%s\t%s\t%d;\"\ts\tline:%d%s%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c, context.access);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 		auto c = context;
 		c.insideStructClass = true;
-		context.c = "\tstruct:" ~ dec.name.text;
+		context.s = extendScope(context.s, "struct", dec.name.text);
 		context.access = "\taccess:public";
 		context.insideStructClass = true;
 		dec.accept(this);
@@ -122,9 +135,9 @@ final class CTagsPrinter
 	override void visit(const InterfaceDeclaration dec)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\ti\tline:%d%s%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c, context.access);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 		auto c = context;
-		context.c = "\tclass:" ~ dec.name.text;
+		context.s = extendScope(context.s, "class", dec.name.text);
 		context.access = context.access;
 		context.insideStructClass = false;
 		dec.accept(this);
@@ -136,10 +149,10 @@ final class CTagsPrinter
 		auto params = paramsToString(dec);
 
 		tagLines ~= "%s\t%s\t%d;\"\tT\tline:%d%s%s\tsignature:%s\n".format(
-			dec.name.text, fileName, dec.name.line, dec.name.line, context.c,
+			dec.name.text, fileName, dec.name.line, dec.name.line, scopeToString(context.s),
 			context.access, params);
 		auto c = context;
-		context.c = "\ttemplate:" ~ dec.name.text;
+		context.s = extendScope(context.s, "template", dec.name.text);
 		context.access = context.access;
 		context.insideStructClass = false;
 		dec.accept(this);
@@ -151,7 +164,7 @@ final class CTagsPrinter
 		auto params = paramsToString(dec);
 
 		tagLines ~= "%s\t%s\t%d;\"\tf\tline:%d%s%s\tsignature:%s\n".format(
-			dec.name.text, fileName, dec.name.line, dec.name.line, context.c,
+			dec.name.text, fileName, dec.name.line, dec.name.line, scopeToString(context.s),
 			context.access, params);
 	}
 
@@ -160,21 +173,21 @@ final class CTagsPrinter
 		auto params = paramsToString(dec);
 
 		tagLines ~= "this\t%s\t%d;\"\tf\tline:%d%s\tsignature:%s%s\n".format(fileName,
-			dec.line, dec.line, context.c, params, context.access);
+			dec.line, dec.line, scopeToString(context.s), params, context.access);
 	}
 
 	override void visit(const Destructor dec)
 	{
 		tagLines ~= "~this\t%s\t%d;\"\tf\tline:%d%s\n".format(fileName,
-			dec.line, dec.line, context.c);
+			dec.line, dec.line, scopeToString(context.s));
 	}
 
 	override void visit(const EnumDeclaration dec)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\tg\tline:%d%s%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c, context.access);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 		auto c = context;
-		context.c = "\tenum:" ~ dec.name.text;
+		context.s = extendScope(context.s, "enum", dec.name.text);
 		context.access = context.access;
 		dec.accept(this);
 		context = c;
@@ -188,9 +201,9 @@ final class CTagsPrinter
 			return;
 		}
 		tagLines ~= "%s\t%s\t%d;\"\tu\tline:%d%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s));
 		auto c = context;
-		context.c = "\tunion:" ~ dec.name.text;
+		context.s = extendScope(context.s, "union", dec.name.text);
 		context.access = context.access;
 		dec.accept(this);
 		context = c;
@@ -199,13 +212,13 @@ final class CTagsPrinter
 	override void visit(const AnonymousEnumMember mem)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\te\tline:%d%s\n".format(mem.name.text,
-			fileName, mem.name.line, mem.name.line, context.c);
+			fileName, mem.name.line, mem.name.line, scopeToString(context.s));
 	}
 
 	override void visit(const EnumMember mem)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\te\tline:%d%s\n".format(mem.name.text,
-			fileName, mem.name.line, mem.name.line, context.c);
+			fileName, mem.name.line, mem.name.line, scopeToString(context.s));
 	}
 
 	override void visit(const VariableDeclaration dec)
@@ -219,7 +232,7 @@ final class CTagsPrinter
 		foreach (d; dec.declarators)
 		{
 			tagLines ~= "%s\t%s\t%d;\"\t%s\tline:%d%s%s\n".format(d.name.text,
-				fileName, d.name.line, tagname, d.name.line, context.c, context.access);
+				fileName, d.name.line, tagname, d.name.line, scopeToString(context.s), context.access);
 		}
 		dec.accept(this);
 	}
@@ -229,7 +242,7 @@ final class CTagsPrinter
 		foreach (i; dec.identifiers)
 		{
 			tagLines ~= "%s\t%s\t%d;\"\tv\tline:%d%s%s\n".format(i.text,
-				fileName, i.line, i.line, context.c, context.access);
+				fileName, i.line, i.line, scopeToString(context.s), context.access);
 		}
 		dec.accept(this);
 	}
@@ -237,12 +250,12 @@ final class CTagsPrinter
 	override void visit(const Invariant dec)
 	{
 		tagLines ~= "invariant\t%s\t%d;\"\tv\tline:%d%s%s\n".format(fileName,
-			dec.line, dec.line, context.c, context.access);
+			dec.line, dec.line, scopeToString(context.s), context.access);
 	}
 
 	override void visit(const ModuleDeclaration dec)
 	{
-		context.c = "";
+		context.s = ScopeType();
 		context.access = "\taccess:public";
 		context.insideStructClass = false;
 		dec.accept(this);
@@ -315,7 +328,7 @@ final class CTagsPrinter
 			foreach (i; dec.identifierList.identifiers)
 			{
 				tagLines ~= "%s\t%s\t%d;\"\ta\tline:%d%s%s\n".format(i.text,
-					fileName, i.line, i.line, context.c, context.access);
+					fileName, i.line, i.line, scopeToString(context.s), context.access);
 			}
 		}
 		dec.accept(this);
@@ -324,7 +337,7 @@ final class CTagsPrinter
 	override void visit(const AliasInitializer dec)
 	{
 		tagLines ~= "%s\t%s\t%d;\"\ta\tline:%d%s%s\n".format(dec.name.text,
-			fileName, dec.name.line, dec.name.line, context.c, context.access);
+			fileName, dec.name.line, dec.name.line, scopeToString(context.s), context.access);
 
 		dec.accept(this);
 	}
@@ -333,7 +346,7 @@ final class CTagsPrinter
 	{
 		auto name = dec.identifier;
 		tagLines ~= "%s\t%s\t%d;\"\ta\tline:%d%s%s\n".format(name.text,
-			fileName, name.line, name.line, context.c, context.access);
+			fileName, name.line, name.line, scopeToString(context.s), context.access);
 
 		dec.accept(this);
 	}
