@@ -71,7 +71,8 @@ class UndocumentedDeclarationCheck : BaseAnalyzer
 				ovr = true;
 			else if (attribute.deprecated_ !is null)
 				dep = true;
-			else if (attribute.atAttribute !is null && attribute.atAttribute.identifier.text == "disable")
+			else if (attribute.atAttribute !is null
+					&& attribute.atAttribute.identifier.text == "disable")
 				dis = true;
 		}
 		if (ovr)
@@ -93,18 +94,19 @@ class UndocumentedDeclarationCheck : BaseAnalyzer
 
 	override void visit(const VariableDeclaration variable)
 	{
-		if (!currentIsInteresting() || variable.comment !is null)
+		if (!currentIsInteresting() || variable.comment.ptr !is null)
 			return;
 		if (variable.autoDeclaration !is null)
 		{
 			addMessage(variable.autoDeclaration.identifiers[0].line,
-				variable.autoDeclaration.identifiers[0].column,
-				variable.autoDeclaration.identifiers[0].text);
+					variable.autoDeclaration.identifiers[0].column,
+					variable.autoDeclaration.identifiers[0].text);
 			return;
 		}
 		foreach (dec; variable.declarators)
 		{
-			addMessage(dec.name.line, dec.name.column, dec.name.text);
+			if (dec.comment.ptr is null)
+				addMessage(dec.name.line, dec.name.column, dec.name.text);
 			return;
 		}
 	}
@@ -114,13 +116,22 @@ class UndocumentedDeclarationCheck : BaseAnalyzer
 		const VersionCondition ver = cond.compileCondition.versionCondition;
 		if (ver is null || (ver.token != tok!"unittest" && ver.token.text != "none"))
 			cond.accept(this);
-		else if (cond.falseDeclaration !is null)
-			visit(cond.falseDeclaration);
+		else if (cond.falseDeclarations.length > 0)
+			foreach (f; cond.falseDeclarations)
+				visit(f);
 	}
 
-	override void visit(const FunctionBody fb) {}
-	override void visit(const Unittest u) {}
-	override void visit(const TraitsExpression t) {}
+	override void visit(const FunctionBody fb)
+	{
+	}
+
+	override void visit(const Unittest u)
+	{
+	}
+
+	override void visit(const TraitsExpression t)
+	{
+	}
 
 	mixin V!ClassDeclaration;
 	mixin V!InterfaceDeclaration;
@@ -137,28 +148,30 @@ private:
 		override void visit(const T declaration)
 		{
 			import std.traits : hasMember;
+
 			if (currentIsInteresting())
 			{
-				if (declaration.comment is null)
+				if (declaration.comment.ptr is null)
 				{
 					static if (hasMember!(T, "name"))
 					{
-						static if (is (T == FunctionDeclaration))
+						static if (is(T == FunctionDeclaration))
 						{
 							import std.algorithm : canFind;
+
 							if (!(ignoredFunctionNames.canFind(declaration.name.text)
-								|| isGetterOrSetter(declaration.name.text)
-								|| isProperty(declaration)))
+									|| isGetterOrSetter(declaration.name.text)
+									|| isProperty(declaration)))
 							{
-								addMessage(declaration.name.line, declaration.name.column,
-									declaration.name.text);
+								addMessage(declaration.name.line,
+										declaration.name.column, declaration.name.text);
 							}
 						}
 						else
 						{
 							if (declaration.name.type != tok!"")
-								addMessage(declaration.name.line, declaration.name.column,
-									declaration.name.text);
+								addMessage(declaration.name.line,
+										declaration.name.column, declaration.name.text);
 						}
 					}
 					else
@@ -166,8 +179,7 @@ private:
 						addMessage(declaration.line, declaration.column, null);
 					}
 				}
-				static if (!(is (T == TemplateDeclaration)
-					|| is(T == FunctionDeclaration)))
+				static if (!(is(T == TemplateDeclaration) || is(T == FunctionDeclaration)))
 				{
 					declaration.accept(this);
 				}
@@ -195,9 +207,10 @@ private:
 	void addMessage(size_t line, size_t column, string name)
 	{
 		import std.string : format;
-		addErrorMessage(line, column, "dscanner.style.undocumented_declaration",
-			name is null ? "Public declaration is undocumented." :
-				format("Public declaration '%s' is undocumented.", name));
+
+		addErrorMessage(line, column, "dscanner.style.undocumented_declaration", name is null
+				? "Public declaration is undocumented."
+				: format("Public declaration '%s' is undocumented.", name));
 	}
 
 	bool getOverride()
@@ -232,19 +245,25 @@ private:
 
 	bool currentIsInteresting()
 	{
-		return stack[$ - 1].protection == tok!"public" && !stack[$ - 1].isOverride
-			&& !stack[$ - 1].isDisabled && !stack[$ - 1].isDeprecated;
+		return stack[$ - 1].protection == tok!"public"
+			&& !stack[$ - 1].isOverride && !stack[$ - 1].isDisabled && !stack[$ - 1].isDeprecated;
 	}
 
 	void set(IdType p)
-	in { assert (isProtection(p)); }
+	in
+	{
+		assert(isProtection(p));
+	}
 	body
 	{
 		stack[$ - 1].protection = p;
 	}
 
 	void push(IdType p)
-	in { assert (isProtection(p)); }
+	in
+	{
+		assert(isProtection(p));
+	}
 	body
 	{
 		stack ~= ProtectionInfo(p, false);
@@ -252,7 +271,7 @@ private:
 
 	void pop()
 	{
-		assert (stack.length > 1);
+		assert(stack.length > 1);
 		stack = stack[0 .. $ - 1];
 	}
 
@@ -269,11 +288,7 @@ private:
 
 // Ignore undocumented symbols with these names
 private immutable string[] ignoredFunctionNames = [
-	"opCmp",
-	"opEquals",
-	"toString",
-	"toHash",
-	"main"
+	"opCmp", "opEquals", "toString", "toHash", "main"
 ];
 
 private enum getSetRe = ctRegex!`^(?:get|set)(?:\p{Lu}|_).*`;

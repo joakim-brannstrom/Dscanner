@@ -34,9 +34,11 @@ import inifiled;
 import dsymbol.modulecache;
 
 version (unittest)
-void main() {}
+	void main()
+{
+}
 else
-int main(string[] args)
+	int main(string[] args)
 {
 	bool sloc;
 	bool highlight;
@@ -62,15 +64,30 @@ int main(string[] args)
 
 	try
 	{
-		getopt(args, std.getopt.config.caseSensitive, "sloc|l", &sloc,
-			"highlight", &highlight, "ctags|c", &ctags, "help|h", &help,
-			"etags|e", &etags, "etagsAll", &etagsAll,
-			"tokenCount|t", &tokenCount, "syntaxCheck|s", &syntaxCheck,
-			"ast|xml", &ast, "imports|i", &imports, "outline|o", &outline,
-			"tokenDump", &tokenDump, "styleCheck|S", &styleCheck,
-			"defaultConfig", &defaultConfig, "declaration|d", &symbolName,
-			"config", &configLocation, "report", &report, "I", &importPaths,
-			"version", &printVersion, "muffinButton", &muffin, "explore", &explore);
+		// dfmt off
+		getopt(args, std.getopt.config.caseSensitive,
+				"sloc|l", &sloc,
+				"highlight", &highlight,
+				"ctags|c", &ctags,
+				"help|h", &help,
+				"etags|e", &etags,
+				"etagsAll", &etagsAll,
+				"tokenCount|t", &tokenCount,
+				"syntaxCheck|s", &syntaxCheck,
+				"ast|xml", &ast,
+				"imports|i", &imports,
+				"outline|o", &outline,
+				"tokenDump", &tokenDump,
+				"styleCheck|S", &styleCheck,
+				"defaultConfig", &defaultConfig,
+				"declaration|d", &symbolName,
+				"config", &configLocation,
+				"report", &report,
+				"I", &importPaths,
+				"version", &printVersion,
+				"muffinButton", &muffin,
+				"explore", &explore);
+		//dfmt on
 	}
 	catch (ConvException e)
 	{
@@ -80,8 +97,7 @@ int main(string[] args)
 
 	if (muffin)
 	{
-		stdout.writeln(
-`       ___________
+		stdout.writeln(`       ___________
     __(#*O 0** @%*)__
   _(%*o#*O%*0 #O#%##@)_
  (*#@%#o*@ #o%O*%@ #o #)
@@ -110,22 +126,24 @@ int main(string[] args)
 	{
 		version (Windows)
 			writeln(DSCANNER_VERSION);
+		else version (built_with_dub)
+			writeln(DSCANNER_VERSION);
 		else
 			write(DSCANNER_VERSION, " ", GIT_HASH);
 		return 0;
 	}
 
-	const(string[]) absImportPaths = importPaths.map!(
-		a => a.absolutePath().buildNormalizedPath()).array();
+	const(string[]) absImportPaths = importPaths.map!(a => a.absolutePath()
+			.buildNormalizedPath()).array();
 
 	auto moduleCache = ModuleCache(new dsymbol.modulecache.ASTAllocator);
 
 	if (absImportPaths.length)
 		moduleCache.addImportPaths(absImportPaths);
 
-	immutable optionCount = count!"a"([sloc, highlight, ctags, tokenCount,
-		syntaxCheck, ast, imports, outline, tokenDump, styleCheck, defaultConfig,
-		report, symbolName !is null, etags, etagsAll]);
+	immutable optionCount = count!"a"([sloc, highlight, ctags, tokenCount, syntaxCheck, ast, imports,
+			outline, tokenDump, styleCheck, defaultConfig, report,
+			symbolName !is null, etags, etagsAll]);
 	if (optionCount > 1)
 	{
 		stderr.writeln("Too many options specified");
@@ -138,7 +156,8 @@ int main(string[] args)
 	}
 
 	// --report implies --styleCheck
-	if (report) styleCheck = true;
+	if (report)
+		styleCheck = true;
 
 	StringCache cache = StringCache(StringCache.defaultBucketCount);
 	if (defaultConfig)
@@ -155,19 +174,23 @@ int main(string[] args)
 		ubyte[] bytes = usingStdin ? readStdin() : readFile(args[1]);
 		LexerConfig config;
 		config.stringBehavior = StringBehavior.source;
-		auto tokens = byToken(bytes, config, &cache);
+
 		if (highlight)
 		{
+			auto tokens = byToken(bytes, config, &cache);
 			highlighter.highlight(tokens, args.length == 1 ? "stdin" : args[1]);
 			return 0;
 		}
 		else if (tokenDump)
 		{
-			writeln("text                    blank\tindex\tline\tcolumn\ttype\tcomment");
+			auto tokens = getTokensForParser(bytes, config, &cache);
+			writeln(
+					"text                    blank\tindex\tline\tcolumn\ttype\tcomment\ttrailingComment");
 			foreach (token; tokens)
 			{
-				writefln("<<%20s>>%b\t%d\t%d\t%d\t%d\t%s", token.text is null ? str(token.type) : token.text,
-					token.text !is null, token.index, token.line, token.column, token.type, token.comment);
+				writefln("<<%20s>>%b\t%d\t%d\t%d\t%d\t%s", token.text is null
+						? str(token.type) : token.text, token.text !is null, token.index,
+						token.line, token.column, token.type, token.comment);
 			}
 			return 0;
 		}
@@ -240,9 +263,8 @@ int main(string[] args)
 			foreach (name; expandArgs(fileNames))
 			{
 				config.fileName = name;
-				auto tokens = getTokensForParser(
-					usingStdin ? readStdin() : readFile(name),
-					config, &cache);
+				auto tokens = getTokensForParser(usingStdin ? readStdin()
+						: readFile(name), config, &cache);
 				auto mod = parseModule(tokens, name, null, &doNothing);
 				visitor.visit(mod);
 			}
@@ -255,9 +277,8 @@ int main(string[] args)
 			LexerConfig config;
 			config.fileName = fileName;
 			config.stringBehavior = StringBehavior.source;
-			auto tokens = getTokensForParser(
-				usingStdin ? readStdin() : readFile(args[1]),
-				config, &cache);
+			auto tokens = getTokensForParser(usingStdin ? readStdin()
+					: readFile(args[1]), config, &cache);
 			auto mod = parseModule(tokens, fileName, null, &doNothing);
 
 			if (ast)
@@ -276,36 +297,32 @@ int main(string[] args)
 	return 0;
 }
 
-
 string[] expandArgs(string[] args)
 {
 	// isFile can throw if it's a broken symlink.
 	bool isFileSafe(T)(T a)
 	{
 		try
-		{
 			return isFile(a);
-		}
-		catch(FileException)
-		{
+		catch (FileException)
 			return false;
-		}
 	}
 
 	string[] rVal;
 	if (args.length == 1)
 		args ~= ".";
-	foreach (arg; args[1 ..$])
+	foreach (arg; args[1 .. $])
 	{
 		if (isFileSafe(arg))
 			rVal ~= arg;
-		else foreach (item; dirEntries(arg, SpanMode.breadth).map!(a => a.name))
-		{
-			if (isFileSafe(item) && (item.endsWith(`.d`) || item.endsWith(`.di`)))
-				rVal ~= item;
-			else
-				continue;
-		}
+		else
+			foreach (item; dirEntries(arg, SpanMode.breadth).map!(a => a.name))
+			{
+				if (isFileSafe(item) && (item.endsWith(`.d`) || item.endsWith(`.di`)))
+					rVal ~= item;
+				else
+					continue;
+			}
 	}
 	return rVal;
 }
@@ -332,7 +349,8 @@ ubyte[] readFile(string fileName)
 		return [];
 	}
 	File f = File(fileName);
-	if (f.size == 0) return [];
+	if (f.size == 0)
+		return [];
 	ubyte[] sourceCode = uninitializedArray!(ubyte[])(to!size_t(f.size));
 	f.rawRead(sourceCode);
 	return sourceCode;
@@ -340,87 +358,90 @@ ubyte[] readFile(string fileName)
 
 void printHelp(string programName)
 {
-	stderr.writefln(
-`
-    Usage: %s options
+	stderr.writefln(`
+    Usage: %s <options>
 
-options:
-    --help | -h
+Options:
+    --help, -h
         Prints this help message
 
     --version
         Prints the program version
 
-    --sloc | -l [sourceFiles]
+    --sloc <file | directory>..., -l <file | directory>...
         Prints the number of logical lines of code in the given
         source files. If no files are specified, input is read from stdin.
 
-    --tokenCount | -t [sourceFiles]
+    --tokenCount <file | directory>..., -t <file | directory>...
         Prints the number of tokens in the given source files. If no files are
         specified, input is read from stdin.
 
-    --highlight [sourceFile] - Syntax-highlight the given source file. The
-        resulting HTML will be written to standard output. If no files are
-        specified, input is read from stdin.
+    --highlight <file>
+        Syntax-highlight the given source file. The resulting HTML will be
+        written to standard output. If no file is specified, input is read
+        from stdin.
 
-    --imports | -i [sourceFile]
+    --imports <file>, -i <file>
         Prints modules imported by the given source file. If no files are
         specified, input is read from stdin.
 
-    --syntaxCheck | -s [sourceFile]
+    --syntaxCheck <file>, -s <file>
         Lexes and parses sourceFile, printing the line and column number of any
         syntax errors to stdout. One error or warning is printed per line.
         If no files are specified, input is read from stdin. %1$s will exit with
         a status code of zero if no errors are found, 1 otherwise.
 
-    --styleCheck | -S [sourceFiles]
+    --styleCheck <file | directory>..., <file | directory>...
         Lexes and parses sourceFiles, printing the line and column number of any
         static analysis check failures stdout. %1$s will exit with a status code
         of zero if no warnings or errors are found, 1 otherwise.
 
-    --ctags | -c sourceFile
+    --ctags <file | directory>..., -c <file | directory>...
         Generates ctags information from the given source code file. Note that
         ctags information requires a filename, so stdin cannot be used in place
         of a filename.
 
-    --etags | -e sourceFile
+    --etags <file | directory>..., -e <file | directory>...
         Generates etags information from the given source code file. Note that
         etags information requires a filename, so stdin cannot be used in place
         of a filename.
 
-    --etagsAll sourceFile
+    --etagsAll <file | directory>...
         Same as --etags except private and package declarations are tagged too.
 
-    --ast | --xml sourceFile
+    --ast <file> | --xml <file>
         Generates an XML representation of the source files abstract syntax
         tree. If no files are specified, input is read from stdin.
 
-    --declaration | -d symbolName [sourceFiles sourceDirectories]
+    --declaration <symbolName> <file | directory>...,
+	-d <symbolName> <file | directory>...
         Find the location where symbolName is declared. This should be more
         accurate than "grep". Searches the given files and directories, or the
         current working directory if none are specified.
 
-    --report [sourceFiles sourceDirectories]
+    --report <file | directory>...
         Generate a static analysis report in JSON format. Implies --styleCheck,
         however the exit code will still be zero if errors or warnings are
         found.
 
-    --config configFile
+    --config <file>
         Use the given configuration file instead of the default located in
         $HOME/.config/dscanner/dscanner.ini
 
     --defaultConfig
         Generates a default configuration file for the static analysis checks`,
-        programName);
+			programName);
 }
 
-private void doNothing(string, size_t, size_t, string, bool) {}
+private void doNothing(string, size_t, size_t, string, bool)
+{
+}
 
 private enum CONFIG_FILE_NAME = "dscanner.ini";
-version(linux) version = useXDG;
-version(BSD) version = useXDG;
-version(FreeBSD) version = useXDG;
-version(OSX) version = useXDG;
+version (linux) version = useXDG;
+version (BSD) version = useXDG;
+version (FreeBSD) version = useXDG;
+version (OSX) version = useXDG;
 
 /**
  * Locates the configuration file
@@ -430,6 +451,7 @@ string getConfigurationLocation()
 	version (useXDG)
 	{
 		import std.process : environment;
+
 		string configDir = environment.get("XDG_CONFIG_HOME", null);
 		if (configDir is null)
 		{
@@ -439,13 +461,9 @@ string getConfigurationLocation()
 			configDir = buildPath(configDir, ".config", "dscanner", CONFIG_FILE_NAME);
 		}
 		else
-		{
 			configDir = buildPath(configDir, "dscanner", CONFIG_FILE_NAME);
-		}
 		return configDir;
 	}
-	else version(Windows)
-	{
+	else version (Windows)
 		return CONFIG_FILE_NAME;
-	}
 }

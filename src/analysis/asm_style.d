@@ -28,10 +28,10 @@ class AsmStyleCheck : BaseAnalyzer
 	override void visit(const AsmBrExp brExp)
 	{
 		if (brExp.asmBrExp !is null && brExp.asmBrExp.asmUnaExp !is null
-			&& brExp.asmBrExp.asmUnaExp.asmPrimaryExp !is null)
+				&& brExp.asmBrExp.asmUnaExp.asmPrimaryExp !is null)
 		{
 			addErrorMessage(brExp.line, brExp.column, "dscanner.confusing.brexp",
-				"This is confusing because it looks like an array index. Rewrite a[1] as [a + 1] to clarify.");
+					"This is confusing because it looks like an array index. Rewrite a[1] as [a + 1] to clarify.");
 		}
 		brExp.accept(this);
 	}
@@ -56,4 +56,3 @@ unittest
 
 	stderr.writeln("Unittest for AsmStyleCheck passed.");
 }
-

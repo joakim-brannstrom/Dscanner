@@ -14,6 +14,7 @@ import std.stdio;
 import std.array;
 import std.conv;
 import std.typecons;
+import containers.ttree;
 
 /**
  * Prints CTAGS information to the given file.
@@ -24,7 +25,7 @@ import std.typecons;
  */
 void printCtags(File output, string[] fileNames)
 {
-	string[] tags;
+	TTree!string tags;
 	LexerConfig config;
 	StringCache cache = StringCache(StringCache.defaultBucketCount);
 	foreach (fileName; fileNames)
@@ -37,14 +38,13 @@ void printCtags(File output, string[] fileNames)
 		auto tokens = getTokensForParser(bytes, config, &cache);
 		Module m = parseModule(tokens.array, fileName, null, &doNothing);
 
-		auto printer = new CTagsPrinter;
+		auto printer = new CTagsPrinter(&tags);
 		printer.fileName = fileName;
 		printer.visit(m);
-		tags ~= printer.tagLines;
 	}
-	output.write(
-		"!_TAG_FILE_FORMAT\t2\n" ~ "!_TAG_FILE_SORTED\t1\n" ~ "!_TAG_FILE_AUTHOR\tBrian Schott\n" ~ "!_TAG_PROGRAM_URL\thttps://github.com/Hackerpilot/Dscanner/\n");
-	tags.sort().copy(output.lockingTextWriter);
+	output.write("!_TAG_FILE_FORMAT\t2\n" ~ "!_TAG_FILE_SORTED\t1\n" ~ "!_TAG_FILE_AUTHOR\tBrian Schott\n"
+			~ "!_TAG_PROGRAM_URL\thttps://github.com/Hackerpilot/Dscanner/\n");
+	tags[].copy(output.lockingTextWriter);
 }
 
 private:
@@ -120,12 +120,16 @@ string paramsToString(Dec)(const Dec dec)
 	return app.data;
 }
 
-final class CTagsPrinter
-	: ASTVisitor
+final class CTagsPrinter : ASTVisitor
 {
+	public this(TTree!string* output)
+	{
+		this.tagLines = output;
+	}
+
 	override void visit(const ClassDeclaration dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "c", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "c", context.s, context.access));
 		auto c = context;
 		context.s = extendScope(context.s, "class", dec.name.text);
 		context.access = "access:public";
@@ -142,7 +146,7 @@ final class CTagsPrinter
 			dec.accept(this);
 			return;
 		}
-		tagLines ~= makeTag(dec, fileName, "s", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "s", context.s, context.access));
 		auto c = context;
 		context.s = extendScope(context.s, "struct", dec.name.text);
 		context.access = "access:public";
@@ -153,7 +157,7 @@ final class CTagsPrinter
 
 	override void visit(const InterfaceDeclaration dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "i", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "i", context.s, context.access));
 		auto c = context;
 		context.s = extendScope(context.s, "class", dec.name.text);
 		context.access = context.access;
@@ -166,38 +170,36 @@ final class CTagsPrinter
 	{
 		auto params = paramsToString(dec);
 
-		tagLines ~= makeTag(dec, fileName, "T", context.s, context.access, "signature:" ~ params);
-		auto c = context;
+		tagLines.insert(makeTag(dec, fileName, "T", context.s, context.access, "signature:" ~ params));
 		context.s = extendScope(context.s, "template", dec.name.text);
 		context.access = context.access;
 		context.insideStructClass = false;
 		dec.accept(this);
-		context = c;
 	}
 
 	override void visit(const FunctionDeclaration dec)
 	{
 		auto params = paramsToString(dec);
 
-		tagLines ~= makeTag(dec, fileName, "f", context.s, context.access, "signature:" ~ params);
+		tagLines.insert(makeTag(dec, fileName, "f", context.s, context.access, "signature:" ~ params));
 	}
 
 	override void visit(const Constructor dec)
 	{
 		auto params = paramsToString(dec);
 
-		tagLines ~= makeTag("this", dec.line, fileName, "f", context.s,
-			context.access, "signature:" ~ params);
+		tagLines.insert(makeTag("this", dec.line, fileName, "f", context.s,
+			context.access, "signature:" ~ params));
 	}
 
 	override void visit(const Destructor dec)
 	{
-		tagLines ~= makeTag("~this", dec.line, fileName, "f", context.s, context.access);
+		tagLines.insert(makeTag("~this", dec.line, fileName, "f", context.s, context.access));
 	}
 
 	override void visit(const EnumDeclaration dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "g", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "g", context.s, context.access));
 		auto c = context;
 		context.s = extendScope(context.s, "enum", dec.name.text);
 		context.access = context.access;
@@ -212,7 +214,7 @@ final class CTagsPrinter
 			dec.accept(this);
 			return;
 		}
-		tagLines ~= makeTag(dec, fileName, "u", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "u", context.s, context.access));
 		auto c = context;
 		context.s = extendScope(context.s, "union", dec.name.text);
 		context.access = context.access;
@@ -222,12 +224,12 @@ final class CTagsPrinter
 
 	override void visit(const AnonymousEnumMember dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "e", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "e", context.s, context.access));
 	}
 
 	override void visit(const EnumMember dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "e", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "e", context.s, context.access));
 	}
 
 	override void visit(const VariableDeclaration dec)
@@ -240,7 +242,7 @@ final class CTagsPrinter
 
 		foreach (d; dec.declarators)
 		{
-			tagLines ~= makeTag(d, fileName, tagname, context.s, context.access);
+			tagLines.insert(makeTag(d, fileName, tagname, context.s, context.access));
 		}
 		dec.accept(this);
 	}
@@ -249,14 +251,14 @@ final class CTagsPrinter
 	{
 		foreach (i; dec.identifiers)
 		{
-			tagLines ~= makeTag(i.text, i.line, fileName, "v", context.s, context.access);
+			tagLines.insert(makeTag(i.text, i.line, fileName, "v", context.s, context.access));
 		}
 		dec.accept(this);
 	}
 
 	override void visit(const Invariant dec)
 	{
-		tagLines ~= makeTag("invariant", dec.line, fileName, "v", context.s, context.access);
+		tagLines.insert(makeTag("invariant", dec.line, fileName, "v", context.s, context.access));
 	}
 
 	override void visit(const ModuleDeclaration dec)
@@ -333,7 +335,7 @@ final class CTagsPrinter
 		{
 			foreach (i; dec.identifierList.identifiers)
 			{
-				tagLines ~= makeTag(i.text, i.line, fileName, "a", context.s, context.access);
+				tagLines.insert(makeTag(i.text, i.line, fileName, "a", context.s, context.access));
 			}
 		}
 		dec.accept(this);
@@ -341,7 +343,7 @@ final class CTagsPrinter
 
 	override void visit(const AliasInitializer dec)
 	{
-		tagLines ~= makeTag(dec, fileName, "a", context.s, context.access);
+		tagLines.insert(makeTag(dec, fileName, "a", context.s, context.access));
 
 		dec.accept(this);
 	}
@@ -349,14 +351,14 @@ final class CTagsPrinter
 	override void visit(const AliasThisDeclaration dec)
 	{
 		auto name = dec.identifier;
-		tagLines ~= makeTag(name.text, name.line, fileName, "a", context.s, context.access);
+		tagLines.insert(makeTag(name.text, name.line, fileName, "a", context.s, context.access));
 
 		dec.accept(this);
 	}
 
 	alias visit = ASTVisitor.visit;
 	string fileName;
-	string[] tagLines;
+	TTree!string* tagLines;
 	ContextType context;
 	AccessState accessSt;
 }

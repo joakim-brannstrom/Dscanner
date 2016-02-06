@@ -29,10 +29,13 @@ final class MismatchedArgumentCheck : BaseAnalyzer
 		const istring[] args = argVisitor.args;
 
 		auto identVisitor = scoped!IdentVisitor;
-		identVisitor.visit(fce.unaryExpression);
+		if (fce.unaryExpression !is null)
+			identVisitor.visit(fce.unaryExpression);
+		else if (fce.type !is null)
+			identVisitor.visit(fce.type);
 
-		const(DSymbol)*[] symbols = resolveSymbol(sc,
-			identVisitor.names.length > 0 ? identVisitor.names : [CONSTRUCTOR_SYMBOL_NAME]);
+		const(DSymbol)*[] symbols = resolveSymbol(sc, identVisitor.names.length > 0
+				? identVisitor.names : [CONSTRUCTOR_SYMBOL_NAME]);
 
 		static struct ErrorMessage
 		{
@@ -56,14 +59,15 @@ final class MismatchedArgumentCheck : BaseAnalyzer
 			{
 				foreach (size_t i, ref const mm; mismatches)
 				{
-					messages ~= ErrorMessage(argVisitor.lines[i], argVisitor.columns[i],
-						createWarningFromMismatch(mm));
+					messages ~= ErrorMessage(argVisitor.lines[i],
+							argVisitor.columns[i], createWarningFromMismatch(mm));
 				}
 			}
 		}
 
-		if (!matched) foreach (m; messages)
-			addErrorMessage(m.line, m.column, KEY, m.message);
+		if (!matched)
+			foreach (m; messages)
+				addErrorMessage(m.line, m.column, KEY, m.message);
 	}
 
 	alias visit = ASTVisitor.visit;
@@ -204,7 +208,7 @@ string createWarningFromMismatch(const ArgMismatch mismatch) pure
 	import std.format : format;
 
 	return "Argument %d is named '%s', but this is the name of parameter %d".format(
-		mismatch.argIndex + 1, mismatch.name, mismatch.paramIndex + 1);
+			mismatch.argIndex + 1, mismatch.name, mismatch.paramIndex + 1);
 }
 
 unittest
