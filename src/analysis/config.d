@@ -15,7 +15,7 @@ StaticAnalysisConfig defaultStaticAnalysisConfig()
 	return config;
 }
 
-@INI("Configurue which static analysis checks are enabled")
+@INI("Configure which static analysis checks are enabled")
 struct StaticAnalysisConfig
 {
 	@INI("Check variable, class, struct, interface, union, and function names against the Phobos style guide")
@@ -110,4 +110,10 @@ struct StaticAnalysisConfig
 
 	@INI("Checks for asserts that are always true")
 	bool useless_assert_check;
+
+	@INI("Check for uses of the old-style alias syntax")
+	bool alias_syntax_check;
+
+	@INI("Checks for else if that should be else static if")
+	bool static_if_else_check;
 }

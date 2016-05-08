@@ -16,6 +16,7 @@ import std.range;
 import std.experimental.lexer;
 import dparse.lexer;
 import dparse.parser;
+import dparse.rollback_allocator;
 
 import highlighter;
 import stats;
@@ -28,6 +29,7 @@ import symbol_finder;
 import analysis.run;
 import analysis.config;
 import dscanner_version;
+import readers;
 
 import inifiled;
 
@@ -159,6 +161,8 @@ else
 	if (report)
 		styleCheck = true;
 
+	immutable usingStdin = args.length == 1;
+
 	StringCache cache = StringCache(StringCache.defaultBucketCount);
 	if (defaultConfig)
 	{
@@ -170,7 +174,6 @@ else
 	}
 	else if (tokenDump || highlight)
 	{
-		immutable bool usingStdin = args.length == 1;
 		ubyte[] bytes = usingStdin ? readStdin() : readFile(args[1]);
 		LexerConfig config;
 		config.stringBehavior = StringBehavior.source;
@@ -189,7 +192,7 @@ else
 			foreach (token; tokens)
 			{
 				writefln("<<%20s>>%b\t%d\t%d\t%d\t%d\t%s", token.text is null
-						? str(token.type) : token.text, token.text !is null, token.index,
+						? str(token.type) : token.text, token.text is null, token.index,
 						token.line, token.column, token.type, token.comment);
 			}
 			return 0;
@@ -220,11 +223,10 @@ else
 	}
 	else if (syntaxCheck)
 	{
-		return .syntaxCheck(expandArgs(args), cache, moduleCache) ? 1 : 0;
+		return .syntaxCheck(usingStdin ? ["stdin"] : expandArgs(args), cache, moduleCache) ? 1 : 0;
 	}
 	else
 	{
-		bool usingStdin = args.length == 1;
 		if (sloc || tokenCount)
 		{
 			if (usingStdin)
@@ -257,6 +259,7 @@ else
 		else if (imports)
 		{
 			string[] fileNames = usingStdin ? ["stdin"] : args[1 .. $];
+			RollbackAllocator rba;
 			LexerConfig config;
 			config.stringBehavior = StringBehavior.source;
 			auto visitor = new ImportPrinter;
@@ -265,7 +268,7 @@ else
 				config.fileName = name;
 				auto tokens = getTokensForParser(usingStdin ? readStdin()
 						: readFile(name), config, &cache);
-				auto mod = parseModule(tokens, name, null, &doNothing);
+				auto mod = parseModule(tokens, name, &rba, &doNothing);
 				visitor.visit(mod);
 			}
 			foreach (imp; visitor.imports[])
@@ -274,12 +277,13 @@ else
 		else if (ast || outline)
 		{
 			string fileName = usingStdin ? "stdin" : args[1];
+			RollbackAllocator rba;
 			LexerConfig config;
 			config.fileName = fileName;
 			config.stringBehavior = StringBehavior.source;
 			auto tokens = getTokensForParser(usingStdin ? readStdin()
 					: readFile(args[1]), config, &cache);
-			auto mod = parseModule(tokens, fileName, null, &doNothing);
+			auto mod = parseModule(tokens, fileName, &rba, &doNothing);
 
 			if (ast)
 			{
@@ -325,35 +329,6 @@ string[] expandArgs(string[] args)
 			}
 	}
 	return rVal;
-}
-
-ubyte[] readStdin()
-{
-	auto sourceCode = appender!(ubyte[])();
-	ubyte[4096] buf;
-	while (true)
-	{
-		auto b = stdin.rawRead(buf);
-		if (b.length == 0)
-			break;
-		sourceCode.put(b);
-	}
-	return sourceCode.data;
-}
-
-ubyte[] readFile(string fileName)
-{
-	if (!exists(fileName))
-	{
-		stderr.writefln("%s does not exist", fileName);
-		return [];
-	}
-	File f = File(fileName);
-	if (f.size == 0)
-		return [];
-	ubyte[] sourceCode = uninitializedArray!(ubyte[])(to!size_t(f.size));
-	f.rawRead(sourceCode);
-	return sourceCode;
 }
 
 void printHelp(string programName)

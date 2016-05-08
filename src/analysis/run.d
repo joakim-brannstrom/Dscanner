@@ -14,6 +14,7 @@ import std.array;
 import dparse.lexer;
 import dparse.parser;
 import dparse.ast;
+import dparse.rollback_allocator;
 import std.typecons : scoped;
 
 import std.experimental.allocator : CAllocatorImpl;
@@ -55,6 +56,8 @@ import analysis.line_length;
 import analysis.auto_ref_assignment;
 import analysis.incorrect_infinite_range;
 import analysis.useless_assert;
+import analysis.alias_syntax_check;
+import analysis.static_if_else;
 
 import dsymbol.string_interning : internString;
 import dsymbol.scope_;
@@ -63,6 +66,8 @@ import dsymbol.conversion;
 import dsymbol.conversion.first;
 import dsymbol.conversion.second;
 import dsymbol.modulecache : ModuleCache;
+
+import readers;
 
 bool first = true;
 
@@ -110,14 +115,13 @@ void generateReport(string[] fileNames, const StaticAnalysisConfig config,
 	ulong lineOfCodeCount;
 	foreach (fileName; fileNames)
 	{
-		File f = File(fileName);
-		if (f.size == 0)
+		auto code = fileName == "stdin" ? readStdin() : readFile(fileName);
+		// Skip files that could not be read and continue with the rest
+		if (code.length == 0)
 			continue;
-		auto code = uninitializedArray!(ubyte[])(to!size_t(f.size));
-		f.rawRead(code);
-		ParseAllocator p = new ParseAllocator;
+		RollbackAllocator r;
 		const(Token)[] tokens;
-		const Module m = parseModule(fileName, code, p, cache, true, tokens, &lineOfCodeCount);
+		const Module m = parseModule(fileName, code, &r, cache, true, tokens, &lineOfCodeCount);
 		stats.visit(m);
 		MessageSet results = analyze(fileName, m, config, moduleCache, tokens, true);
 		foreach (result; results[])
@@ -149,16 +153,15 @@ bool analyze(string[] fileNames, const StaticAnalysisConfig config,
 	bool hasErrors = false;
 	foreach (fileName; fileNames)
 	{
-		File f = File(fileName);
-		if (f.size == 0)
+		auto code = fileName == "stdin" ? readStdin() : readFile(fileName);
+		// Skip files that could not be read and continue with the rest
+		if (code.length == 0)
 			continue;
-		auto code = uninitializedArray!(ubyte[])(to!size_t(f.size));
-		f.rawRead(code);
-		ParseAllocator p = new ParseAllocator;
+		RollbackAllocator r;
 		uint errorCount = 0;
 		uint warningCount = 0;
 		const(Token)[] tokens;
-		const Module m = parseModule(fileName, code, p, cache, false, tokens,
+		const Module m = parseModule(fileName, code, &r, cache, false, tokens,
 				null, &errorCount, &warningCount);
 		assert(m);
 		if (errorCount > 0 || (staticAnalyze && warningCount > 0))
@@ -167,13 +170,16 @@ bool analyze(string[] fileNames, const StaticAnalysisConfig config,
 		if (results is null)
 			continue;
 		foreach (result; results[])
+		{
+			hasErrors = true;
 			writefln("%s(%d:%d)[warn]: %s", result.fileName, result.line,
 					result.column, result.message);
+		}
 	}
 	return hasErrors;
 }
 
-const(Module) parseModule(string fileName, ubyte[] code, ParseAllocator p,
+const(Module) parseModule(string fileName, ubyte[] code, RollbackAllocator* p,
 		ref StringCache cache, bool report, ref const(Token)[] tokens,
 		ulong* linesOfCode = null, uint* errorCount = null, uint* warningCount = null)
 {
@@ -266,6 +272,10 @@ MessageSet analyze(string fileName, const Module m, const StaticAnalysisConfig a
 		checks ~= new IncorrectInfiniteRangeCheck(fileName);
 	if (analysisConfig.useless_assert_check)
 		checks ~= new UselessAssertCheck(fileName);
+	if (analysisConfig.alias_syntax_check)
+		checks ~= new AliasSyntaxCheck(fileName);
+	if (analysisConfig.static_if_else_check)
+		checks ~= new StaticIfElse(fileName);
 	version (none)
 		if (analysisConfig.redundant_if_check)
 			checks ~= new IfStatementCheck(fileName, moduleScope);
