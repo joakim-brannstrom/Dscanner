@@ -25,9 +25,9 @@ class StyleChecker : BaseAnalyzer
 	enum string moduleNameRegex = `^[\p{Ll}_\d]+$`;
 	enum string KEY = "dscanner.style.phobos_naming_convention";
 
-	this(string fileName, const(Scope)* sc)
+	this(string fileName, const(Scope)* sc, bool skipTests = false)
 	{
-		super(fileName, sc);
+		super(fileName, sc, skipTests);
 	}
 
 	override void visit(const ModuleDeclaration dec)
@@ -93,10 +93,10 @@ class StyleChecker : BaseAnalyzer
 
 unittest
 {
-	import analysis.config : StaticAnalysisConfig;
+	import analysis.config : StaticAnalysisConfig, Check;
 
 	StaticAnalysisConfig sac;
-	sac.style_check = true;
+	sac.style_check = Check.enabled;
 
 	assertAnalyzerWarnings(q{
 		module AMODULE; // [warn]: Module/package name 'AMODULE' does not match style guidelines.
@@ -109,7 +109,7 @@ unittest
 		class cat {} // [warn]: Class name 'cat' does not match style guidelines.
 		interface puma {} // [warn]: Interface name 'puma' does not match style guidelines.
 		struct dog {} // [warn]: Struct name 'dog' does not match style guidelines.
-		enum racoon {} // [warn]: Enum name 'racoon' does not match style guidelines.
+		enum racoon { a } // [warn]: Enum name 'racoon' does not match style guidelines.
 	}c, sac);
 
 	stderr.writeln("Unittest for StyleChecker passed.");

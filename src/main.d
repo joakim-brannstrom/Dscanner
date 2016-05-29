@@ -14,6 +14,7 @@ import std.path;
 import std.stdio;
 import std.range;
 import std.experimental.lexer;
+import std.typecons : scoped;
 import dparse.lexer;
 import dparse.parser;
 import dparse.rollback_allocator;
@@ -58,6 +59,7 @@ else
 	bool styleCheck;
 	bool defaultConfig;
 	bool report;
+    bool skipTests;
 	string symbolName;
 	string configLocation;
 	string[] importPaths;
@@ -88,7 +90,8 @@ else
 				"I", &importPaths,
 				"version", &printVersion,
 				"muffinButton", &muffin,
-				"explore", &explore);
+				"explore", &explore,
+                "skipTests", &skipTests);
 		//dfmt on
 	}
 	catch (ConvException e)
@@ -138,7 +141,8 @@ else
 	const(string[]) absImportPaths = importPaths.map!(a => a.absolutePath()
 			.buildNormalizedPath()).array();
 
-	auto moduleCache = ModuleCache(new dsymbol.modulecache.ASTAllocator);
+	auto alloc = scoped!(dsymbol.modulecache.ASTAllocator)();
+	auto moduleCache = ModuleCache(alloc);
 
 	if (absImportPaths.length)
 		moduleCache.addImportPaths(absImportPaths);
@@ -216,6 +220,8 @@ else
 		string s = configLocation is null ? getConfigurationLocation() : configLocation;
 		if (s.exists())
 			readINIFile(config, s);
+        if (skipTests)
+            config.fillConfig!(Check.skipTests);
 		if (report)
 			generateReport(expandArgs(args), config, cache, moduleCache);
 		else
@@ -366,7 +372,7 @@ Options:
         If no files are specified, input is read from stdin. %1$s will exit with
         a status code of zero if no errors are found, 1 otherwise.
 
-    --styleCheck <file | directory>..., <file | directory>...
+    --styleCheck|S <file | directory>..., <file | directory>...
         Lexes and parses sourceFiles, printing the line and column number of any
         static analysis check failures stdout. %1$s will exit with a status code
         of zero if no warnings or errors are found, 1 otherwise.
@@ -404,8 +410,12 @@ Options:
         $HOME/.config/dscanner/dscanner.ini
 
     --defaultConfig
-        Generates a default configuration file for the static analysis checks`,
-			programName);
+        Generates a default configuration file for the static analysis checks,
+
+    --skipTests
+        Does not analyze in the unittests. Only works if --styleCheck.`,
+
+    programName);
 }
 
 private void doNothing(string, size_t, size_t, string, bool)
@@ -419,9 +429,9 @@ version (FreeBSD) version = useXDG;
 version (OSX) version = useXDG;
 
 /**
- * Locates the configuration file
+ * Locates the default configuration file
  */
-string getConfigurationLocation()
+string getDefaultConfigurationLocation()
 {
 	version (useXDG)
 	{
@@ -441,4 +451,41 @@ string getConfigurationLocation()
 	}
 	else version (Windows)
 		return CONFIG_FILE_NAME;
+}
+
+/**
+ * Searches upwards from the CWD through the directory hierarchy
+ */
+string tryFindConfigurationLocation()
+{
+	auto path = pathSplitter(getcwd());
+	string result;
+
+	while (!path.empty)
+	{
+		result = buildPath(buildPath(path), CONFIG_FILE_NAME);
+
+		if (exists(result))
+			break;
+
+		path.popBack();
+	}
+
+	if (path.empty)
+		return null;
+
+	return result;
+}
+
+/**
+ * Tries to find a config file and returns the default one on failure
+ */
+string getConfigurationLocation()
+{
+	immutable config = tryFindConfigurationLocation();
+
+	if (config !is null)
+		return config;
+
+	return getDefaultConfigurationLocation();
 }

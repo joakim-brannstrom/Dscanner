@@ -17,9 +17,9 @@ class CommaExpressionCheck : BaseAnalyzer
 {
 	alias visit = BaseAnalyzer.visit;
 
-	this(string fileName, const(Scope)* sc)
+	this(string fileName, const(Scope)* sc, bool skipTests = false)
 	{
-		super(fileName, sc);
+		super(fileName, sc, skipTests);
 	}
 
 	override void visit(const Expression ex)
@@ -41,9 +41,12 @@ class CommaExpressionCheck : BaseAnalyzer
 	// Dconf 2016
 	override void visit(const SynchronizedStatement ss)
 	{
-		++interest;
-		visit(ss.expression);
-		--interest;
+		if (ss.expression !is null)
+		{
+			++interest;
+			visit(ss.expression);
+			--interest;
+		}
 		visit(ss.statementNoCaseNoDefault);
 	}
 
