@@ -40,7 +40,14 @@ class XMLPrinter : ASTVisitor
 
 	override void visit(const AlignAttribute alignAttribute)
 	{
-		output.writeln("<alignAttribute align=\"", alignAttribute.intLiteral.text, "\"/>");
+		if (alignAttribute.assignExpression is null)
+			output.writeln("<alignAttribute/>");
+		else
+		{
+			output.write("<alignAttribute align=\"");
+			format(output.lockingTextWriter, alignAttribute.assignExpression);
+			output.writeln("\"/>");
+		}
 	}
 
 	override void visit(const AndAndExpression andAndExpression)
@@ -134,7 +141,6 @@ class XMLPrinter : ASTVisitor
 
 	override void visit(const Attribute attribute)
 	{
-
 		if (attribute.attribute == tok!"")
 		{
 			output.writeln("<attribute>");
@@ -592,7 +598,23 @@ class XMLPrinter : ASTVisitor
 	override void visit(const LinkageAttribute linkageAttribute)
 	{
 		if (linkageAttribute.hasPlusPlus)
-			output.writeln("<linkageAttribute linkage=\"c++\"/>");
+		{
+			output.write("<linkageAttribute linkage=\"C++\"");
+			if (linkageAttribute.identifierChain !is null && linkageAttribute.identifierChain.identifiers.length > 0)
+			{
+				output.write(" namespace=\"");
+				format(output.lockingTextWriter, linkageAttribute.identifierChain);
+				output.writeln("\"/>");
+			}
+			else if (linkageAttribute.classOrStruct == tok!"class")
+				output.writeln(" mangleAs=\"class\"/>");
+			else if (linkageAttribute.classOrStruct == tok!"struct")
+				output.writeln(" mangleAs=\"struct\"/>");
+			else
+				output.writeln("/>");
+		}
+		else if (linkageAttribute.identifier.text == "Objective")
+			output.writeln("<linkageAttribute linkage=\"Objective-C\"/>");
 		else
 			output.writeln("<linkageAttribute linkage=\"",
 					linkageAttribute.identifier.text, "\"/>");
