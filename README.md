@@ -115,7 +115,8 @@ Note that the "--skipTests" option is the equivalent of changing each
 * Unused labels.
 * Lines longer than 120 characters.
 * Incorrect infinite range definitions.
-* Some assertions that check conditions that will always be true. This check can't be skipped in the tests.
+* Some assertions that check conditions that will always be true.
+* Auto functions without return statement. The compiler doesn't see an omission and it infers 'void' as return type.
 
 #### Wishlist
 
