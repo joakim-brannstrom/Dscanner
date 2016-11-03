@@ -162,7 +162,7 @@ final class CTagsPrinter : ASTVisitor
 	{
 		tagLines.insert(makeTag(dec, fileName, "i", context.s, context.access));
 		auto c = context;
-		context.s = extendScope(context.s, "class", dec.name.text);
+		context.s = extendScope(context.s, "interface", dec.name.text);
 		context.access = context.access;
 		context.insideStructClass = false;
 		dec.accept(this);
@@ -252,7 +252,7 @@ final class CTagsPrinter : ASTVisitor
 
 	override void visit(const AutoDeclaration dec)
 	{
-		foreach (i; dec.identifiers)
+		foreach (i; dec.parts.map!(a => a.identifier))
 		{
 			tagLines.insert(makeTag(i.text, i.line, fileName, "v", context.s, context.access));
 		}
