@@ -60,6 +60,9 @@ import analysis.alias_syntax_check;
 import analysis.static_if_else;
 import analysis.lambda_return_check;
 import analysis.auto_function;
+import analysis.imports_sortedness;
+import analysis.explicitly_annotated_unittests;
+import analysis.final_attribute;
 
 import dsymbol.string_interning : internString;
 import dsymbol.scope_;
@@ -117,7 +120,7 @@ void generateReport(string[] fileNames, const StaticAnalysisConfig config,
 	ulong lineOfCodeCount;
 	foreach (fileName; fileNames)
 	{
-		auto code = fileName == "stdin" ? readStdin() : readFile(fileName);
+		auto code = readFile(fileName);
 		// Skip files that could not be read and continue with the rest
 		if (code.length == 0)
 			continue;
@@ -155,7 +158,7 @@ bool analyze(string[] fileNames, const StaticAnalysisConfig config,
 	bool hasErrors = false;
 	foreach (fileName; fileNames)
 	{
-		auto code = fileName == "stdin" ? readStdin() : readFile(fileName);
+		auto code = readFile(fileName);
 		// Skip files that could not be read and continue with the rest
 		if (code.length == 0)
 			continue;
@@ -358,6 +361,18 @@ MessageSet analyze(string fileName, const Module m, const StaticAnalysisConfig a
 	if (analysisConfig.auto_function_check != Check.disabled)
 		checks ~= new AutoFunctionChecker(fileName,
 		analysisConfig.auto_function_check == Check.skipTests && !ut);
+
+	if (analysisConfig.imports_sortedness != Check.disabled)
+		checks ~= new ImportSortednessCheck(fileName,
+		analysisConfig.imports_sortedness == Check.skipTests && !ut);
+
+	if (analysisConfig.explicitly_annotated_unittests != Check.disabled)
+		checks ~= new ExplicitlyAnnotatedUnittestCheck(fileName,
+		analysisConfig.explicitly_annotated_unittests == Check.skipTests && !ut);
+
+	if (analysisConfig.final_attribute_check != Check.disabled)
+		checks ~= new FinalAttributeChecker(fileName,
+		analysisConfig.final_attribute_check == Check.skipTests && !ut);
 
 	version (none)
 		if (analysisConfig.redundant_if_check != Check.disabled)
