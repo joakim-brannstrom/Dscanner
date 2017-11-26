@@ -32,7 +32,7 @@ class FunctionAttributeCheck : BaseAnalyzer
 
 	override void visit(const InterfaceDeclaration dec)
 	{
-		auto t = inInterface;
+		const t = inInterface;
 		inInterface = true;
 		dec.accept(this);
 		inInterface = t;
@@ -40,7 +40,7 @@ class FunctionAttributeCheck : BaseAnalyzer
 
 	override void visit(const ClassDeclaration dec)
 	{
-		auto t = inInterface;
+		const t = inInterface;
 		inInterface = false;
 		dec.accept(this);
 		inInterface = t;
@@ -59,8 +59,8 @@ class FunctionAttributeCheck : BaseAnalyzer
 	{
 		if (dec.parameters.parameters.length == 0)
 		{
-			bool foundConst = false;
-			bool foundProperty = false;
+			bool foundConst;
+			bool foundProperty;
 			foreach (attribute; dec.attributes)
 				foundConst = foundConst || attribute.attribute.type == tok!"const"
 					|| attribute.attribute.type == tok!"immutable"

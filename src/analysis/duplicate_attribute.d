@@ -34,12 +34,12 @@ class DuplicateAttributeCheck : BaseAnalyzer
 
 	void checkAttributes(const Declaration node)
 	{
-		bool hasProperty = false;
-		bool hasSafe = false;
-		bool hasTrusted = false;
-		bool hasSystem = false;
-		bool hasPure = false;
-		bool hasNoThrow = false;
+		bool hasProperty;
+		bool hasSafe;
+		bool hasTrusted;
+		bool hasSystem;
+		bool hasPure;
+		bool hasNoThrow;
 
 		// Check the attributes
 		foreach (attribute; node.attributes)
@@ -153,9 +153,9 @@ class DuplicateAttributeCheck : BaseAnalyzer
 
 unittest
 {
-	import analysis.config : StaticAnalysisConfig, Check;
+	import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
 
-	StaticAnalysisConfig sac;
+	StaticAnalysisConfig sac = disabledConfig();
 	sac.duplicate_attribute = Check.enabled;
 	assertAnalyzerWarnings(q{
 		class ExampleAttributes

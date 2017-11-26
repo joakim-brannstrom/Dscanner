@@ -67,7 +67,7 @@ class PokemonExceptionCheck : BaseAnalyzer
 		{
 			return;
 		}
-		auto identOrTemplate = type2.symbol.identifierOrTemplateChain
+		const identOrTemplate = type2.symbol.identifierOrTemplateChain
 			.identifiersOrTemplateInstances[0];
 		if (identOrTemplate.templateInstance !is null)
 		{
@@ -85,9 +85,9 @@ class PokemonExceptionCheck : BaseAnalyzer
 
 unittest
 {
-	import analysis.config : StaticAnalysisConfig, Check;
+	import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
 
-	StaticAnalysisConfig sac;
+	StaticAnalysisConfig sac = disabledConfig();
 	sac.exception_check = Check.enabled;
 	assertAnalyzerWarnings(q{
 		void testCatch()

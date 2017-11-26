@@ -93,18 +93,18 @@ private:
 	{
 		import std.algorithm : canFind;
 
-		return builtinProperties.canFind(name);
+		return BuiltinProperties.canFind(name);
 	}
 
-	enum string[] builtinProperties = ["init", "sizeof", "mangleof", "alignof", "stringof"];
+	enum string[] BuiltinProperties = ["init", "sizeof", "mangleof", "alignof", "stringof"];
 	int depth;
 }
 
 unittest
 {
-	import analysis.config : StaticAnalysisConfig, Check;
+	import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
 
-	StaticAnalysisConfig sac;
+	StaticAnalysisConfig sac = disabledConfig();
 	sac.builtin_property_names_check = Check.enabled;
 	assertAnalyzerWarnings(q{
 class SomeClass

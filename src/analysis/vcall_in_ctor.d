@@ -135,7 +135,10 @@ private:
             foreach (vm; _virtualMethods[$-1])
         {
             if (call == vm)
+            {
                 addErrorMessage(call.line, call.column, KEY, MSG);
+                break;
+            }
         }
     }
 
@@ -276,12 +279,12 @@ public:
 
 unittest
 {
-    import analysis.config : StaticAnalysisConfig, Check;
+    import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
     import analysis.helpers : assertAnalyzerWarnings;
     import std.stdio : stderr;
     import std.format : format;
 
-    StaticAnalysisConfig sac;
+    StaticAnalysisConfig sac = disabledConfig();
     sac.vcall_in_ctor = Check.enabled;
 
     // fails

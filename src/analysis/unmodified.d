@@ -58,6 +58,8 @@ class UnmodifiedFinder : BaseAnalyzer
 			{
 				if (initializedFromCast(d.initializer))
 					continue;
+				if (initializedFromNew(d.initializer))
+					continue;
 				tree[$ - 1].insert(new VariableInfo(d.name.text, d.name.line,
 						d.name.column, isValueTypeSimple(dec.type)));
 			}
@@ -76,6 +78,8 @@ class UnmodifiedFinder : BaseAnalyzer
 			foreach (part; autoDeclaration.parts)
 			{
 				if (initializedFromCast(part.initializer))
+					continue;
+				if (initializedFromNew(part.initializer))
 					continue;
 				tree[$ - 1].insert(new VariableInfo(part.identifier.text,
 						part.identifier.line, part.identifier.column));
@@ -160,7 +164,8 @@ class UnmodifiedFinder : BaseAnalyzer
 			foreachStatement.low.accept(this);
 			interest--;
 		}
-		foreachStatement.declarationOrStatement.accept(this);
+		if (foreachStatement.declarationOrStatement !is null)
+			foreachStatement.declarationOrStatement.accept(this);
 	}
 
 	override void visit(const TraitsExpression)
@@ -210,6 +215,19 @@ private:
 		}
 	}
 
+	bool initializedFromNew(const Initializer initializer)
+	{
+		if (initializer && initializer.nonVoidInitializer &&
+			initializer.nonVoidInitializer.assignExpression &&
+			cast(UnaryExpression) initializer.nonVoidInitializer.assignExpression)
+		{
+			const UnaryExpression ue =
+				cast(UnaryExpression) initializer.nonVoidInitializer.assignExpression;
+			return ue.newExpression !is null;
+		}
+		return false;
+	}
+
 	bool initializedFromCast(const Initializer initializer)
 	{
 		import std.typecons : scoped;
@@ -223,7 +241,7 @@ private:
 				castExpression.accept(this);
 			}
 
-			bool foundCast = false;
+			bool foundCast;
 		}
 
 		if (initializer is null)
@@ -316,13 +334,19 @@ bool isValueTypeSimple(const Type type) pure nothrow @nogc
 
 @system unittest
 {
-    import analysis.config : StaticAnalysisConfig, Check;
+    import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
     import analysis.helpers : assertAnalyzerWarnings;
     import std.stdio : stderr;
     import std.format : format;
 
-    StaticAnalysisConfig sac;
+    StaticAnalysisConfig sac = disabledConfig();
     sac.could_be_immutable_check = Check.enabled;
+
+	// fails
+
+	assertAnalyzerWarnings(q{
+        void foo(){int i = 1;} // [warn]: Variable i is never modified and could have been declared const or immutable.
+    }, sac);
 
     // pass
 
@@ -336,6 +360,14 @@ bool isValueTypeSimple(const Type type) pure nothrow @nogc
 
 	assertAnalyzerWarnings(q{
         void foo(){enum i = 1;}
+    }, sac);
+
+	assertAnalyzerWarnings(q{
+        void foo(){E e = new E;}
+    }, sac);
+
+	assertAnalyzerWarnings(q{
+        void foo(){auto e = new E;}
     }, sac);
 
 }

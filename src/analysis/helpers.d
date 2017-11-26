@@ -5,6 +5,7 @@
 
 module analysis.helpers;
 
+import core.exception : AssertError;
 import std.string;
 import std.traits;
 import std.stdio;
@@ -49,6 +50,7 @@ void assertAnalyzerWarnings(string code, const StaticAnalysisConfig config,
 {
 	import analysis.run : parseModule;
 	import dparse.lexer : StringCache, Token;
+	import std.ascii : newline;
 
 	StringCache cache = StringCache(StringCache.defaultBucketCount);
 	RollbackAllocator r;
@@ -59,7 +61,7 @@ void assertAnalyzerWarnings(string code, const StaticAnalysisConfig config,
 
 	// Run the code and get any warnings
 	MessageSet rawWarnings = analyze("test", m, config, moduleCache, tokens);
-	string[] codeLines = code.split("\n");
+	string[] codeLines = code.split(newline);
 
 	// Get the warnings ordered by line
 	string[size_t] warnings;
@@ -107,14 +109,14 @@ void assertAnalyzerWarnings(string code, const StaticAnalysisConfig config,
 		{
 			immutable string errors = "Expected warning:\n%s\nFrom source code at (%s:?):\n%s".format(messages[lineNo],
 					lineNo, codeLines[lineNo - line]);
-			throw new core.exception.AssertError(errors, file, lineNo);
+			throw new AssertError(errors, file, lineNo);
 		}
 		// Different warning
 		else if (warnings[lineNo] != messages[lineNo])
 		{
 			immutable string errors = "Expected warning:\n%s\nBut was:\n%s\nFrom source code at (%s:?):\n%s".format(
 					messages[lineNo], warnings[lineNo], lineNo, codeLines[lineNo - line]);
-			throw new core.exception.AssertError(errors, file, lineNo);
+			throw new AssertError(errors, file, lineNo);
 		}
 	}
 
@@ -132,6 +134,6 @@ void assertAnalyzerWarnings(string code, const StaticAnalysisConfig config,
 	if (unexpectedWarnings.length)
 	{
 		immutable string message = "Unexpected warnings:\n" ~ unexpectedWarnings.join("\n");
-		throw new core.exception.AssertError(message, file, line);
+		throw new AssertError(message, file, line);
 	}
 }

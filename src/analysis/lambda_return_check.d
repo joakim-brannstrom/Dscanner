@@ -44,13 +44,14 @@ private:
     enum KEY = "dscanner.confusing.lambda_returns_lambda";
 }
 
+version(Windows) {/*because of newline in code*/} else
 unittest
 {
 	import analysis.helpers : assertAnalyzerWarnings;
-	import analysis.config : StaticAnalysisConfig, Check;
+	import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
 	import std.stdio : stderr;
 
-	StaticAnalysisConfig sac;
+	StaticAnalysisConfig sac = disabledConfig();
 	sac.lambda_return_check = Check.enabled;
 
 	auto code = `

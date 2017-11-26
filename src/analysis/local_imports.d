@@ -71,7 +71,7 @@ private:
 	{
 		override void visit(const T thing)
 		{
-			auto b = interesting;
+			const b = interesting;
 			interesting = true;
 			thing.accept(this);
 			interesting = b;
@@ -84,9 +84,9 @@ private:
 
 unittest
 {
-	import analysis.config : StaticAnalysisConfig, Check;
+	import analysis.config : StaticAnalysisConfig, Check, disabledConfig;
 
-	StaticAnalysisConfig sac;
+	StaticAnalysisConfig sac = disabledConfig();
 	sac.local_import_check = Check.enabled;
 	assertAnalyzerWarnings(q{
 		void testLocalImport()

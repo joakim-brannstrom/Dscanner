@@ -1,4 +1,4 @@
-# D-Scanner [![CI status](https://travis-ci.org/Hackerpilot/Dscanner.svg?branch=master)](https://travis-ci.org/Hackerpilot/Dscanner/)
+# D-Scanner [![CI status](https://travis-ci.org/dlang-community/D-Scanner.svg?branch=master)](https://travis-ci.org/dlang-community/D-Scanner/)
 D-Scanner is a tool for analyzing D source code
 
 ### Building and installing
@@ -12,14 +12,27 @@ makefile has "ldc" and "gdc" targets if you'd prefer to compile with one of thes
 compilers instead of DMD. To install, simply place the generated binary (in the
 "bin" folder) somewhere on your $PATH.
 
+### Testing
+Testing does not work with DUB.
+Under linux or OSX run the tests with `make test`.
+Under Windows run the tests with `build.bat test`.
+
+### Installing with DUB
+
+```sh
+> dub fetch dscanner && dub run dscanner
+```
+
 # Usage
 The following examples assume that we are analyzing a simple file called helloworld.d
 
-	import std.stdio;
-	void main(string[] args)
-	{
-		writeln("Hello World");
-	}
+```d
+import std.stdio;
+void main(string[] args)
+{
+	writeln("Hello World");
+}
+```
 
 ### Token Count
 The "--tokenCount" or "-t" option prints the number of tokens in the given file
@@ -118,7 +131,14 @@ Note that the "--skipTests" option is the equivalent of changing each
 * Some assertions that check conditions that will always be true.
 * Auto functions without return statement. The compiler doesn't see an omission and it infers 'void' as return type.
 * `final` attribute is used but in this context it's a noop.
+* Check for properly documented public functions ("Returns" and "Params" sections). Initially implemented to lint Phobos. By default disabled.
+* Check for explicitly annotated unittests (_@system_ or _@safe_). Initially implemented to lint Phobos. By default disabled.
+* Check for that imports are sorted. Initially implemented to lint Phobos. By default disabled.
 * Virtual calls inside classes constructors.
+* Useless initializers.
+* Allman brace style
+* Redundant visibility attributes
+* Public declarations without a documented unittest. By default disabled.
 
 #### Wishlist
 
@@ -202,85 +222,116 @@ If a `dscanner.ini` file is locate in the working directory or any of it's paren
 The "--ast" or "--xml" options will dump the complete abstract syntax tree of
 the given source file to standard output in XML format.
 
-	$ dscanner --ast helloworld.d
-	<module>
-	<declaration>
-	<importDeclaration>
-	<singleImport>
-	<identifierChain>
-	<identifier>std</identifier>
-	<identifier>stdio</identifier>
-	</identifierChain>
-	</singleImport>
-	</importDeclaration>
-	</declaration>
-	<declaration>
-	<functionDeclaration line="3">
-	<name>main</name>
-	<type pretty="void">
-	<type2>
-	void
-	</type2>
-	</type>
-	<parameters>
-	<parameter>
-	<name>args</name>
-	<type pretty="string[]">
-	<type2>
-	<symbol>
-	<identifierOrTemplateChain>
-	<identifierOrTemplateInstance>
-	<identifier>string</identifier>
-	</identifierOrTemplateInstance>
-	</identifierOrTemplateChain>
-	</symbol>
-	</type2>
-	<typeSuffix type="[]"/>
-	</type>
-	<identifier>args</identifier>
-	</parameter>
-	</parameters>
-	<functionBody>
-	<blockStatement>
-	<declarationsAndStatements>
-	<declarationOrStatement>
-	<statement>
-	<statementNoCaseNoDefault>
-	<expressionStatement>
-	<expression>
-	<assignExpression>
-	<functionCallExpression>
-	<unaryExpression>
-	<primaryExpression>
-	<identifierOrTemplateInstance>
-	<identifier>writeln</identifier>
-	</identifierOrTemplateInstance>
-	</primaryExpression>
-	</unaryExpression>
-	<arguments>
-	<argumentList>
-	<assignExpression>
-	<primaryExpression>
-	<stringLiteral>Hello World</stringLiteral>
-	</primaryExpression>
-	</assignExpression>
-	</argumentList>
-	</arguments>
-	</functionCallExpression>
-	</assignExpression>
-	</expression>
-	</expressionStatement>
-	</statementNoCaseNoDefault>
-	</statement>
-	</declarationOrStatement>
-	</declarationsAndStatements>
-	</blockStatement>
-	</functionBody>
-	</functionDeclaration>
-	</declaration>
-	</module>
+```sh
+$ dscanner --ast helloworld.d
+```
+	
+```xml
+<module>
+<declaration>
+<importDeclaration>
+<singleImport>
+<identifierChain>
+<identifier>std</identifier>
+<identifier>stdio</identifier>
+</identifierChain>
+</singleImport>
+</importDeclaration>
+</declaration>
+<declaration>
+<functionDeclaration line="3">
+<name>main</name>
+<type pretty="void">
+<type2>
+void
+</type2>
+</type>
+<parameters>
+<parameter>
+<name>args</name>
+<type pretty="string[]">
+<type2>
+<symbol>
+<identifierOrTemplateChain>
+<identifierOrTemplateInstance>
+<identifier>string</identifier>
+</identifierOrTemplateInstance>
+</identifierOrTemplateChain>
+</symbol>
+</type2>
+<typeSuffix type="[]"/>
+</type>
+<identifier>args</identifier>
+</parameter>
+</parameters>
+<functionBody>
+<blockStatement>
+<declarationsAndStatements>
+<declarationOrStatement>
+<statement>
+<statementNoCaseNoDefault>
+<expressionStatement>
+<expression>
+<assignExpression>
+<functionCallExpression>
+<unaryExpression>
+<primaryExpression>
+<identifierOrTemplateInstance>
+<identifier>writeln</identifier>
+</identifierOrTemplateInstance>
+</primaryExpression>
+</unaryExpression>
+<arguments>
+<argumentList>
+<assignExpression>
+<primaryExpression>
+<stringLiteral>Hello World</stringLiteral>
+</primaryExpression>
+</assignExpression>
+</argumentList>
+</arguments>
+</functionCallExpression>
+</assignExpression>
+</expression>
+</expressionStatement>
+</statementNoCaseNoDefault>
+</statement>
+</declarationOrStatement>
+</declarationsAndStatements>
+</blockStatement>
+</functionBody>
+</functionDeclaration>
+</declaration>
+</module>
+```
 
 For more readable output, pipe the command through [xmllint](http://xmlsoft.org/xmllint.html)
 using its formatting switch.
 
 	$ dscanner --ast helloworld.d | xmllint --format -
+
+Selecting modules for a specific check
+--------------------------------------
+
+It is possible to create a new section `analysis.config.ModuleFilters` in the `.dscanner.ini`.
+In this optional section a comma-separated list of inclusion and exclusion selectors can
+be specified for every check on which selective filtering should be applied.
+These given selectors match on the module name and partial matches (`std.` or `.foo.`) are possible.
+Moreover, every selectors must begin with either `+` (inclusion) or `-` (exclusion).
+Exclusion selectors take precedence over all inclusion operators.
+Of course, for every check a different selector set can given:
+
+```ini
+[analysis.config.ModuleFilters]
+final_attribute_check = "+std.foo,+std.bar"
+useless_initializer = "-std."
+```
+
+A few examples:
+
+- `+std.`: Includes all modules matching `std.`
+- `+std.bitmanip,+std.json`: Applies the check only for these two modules
+- `-std.bitmanip,-std.json`: Applies the check for all modules, but these two
+- `+.bar`: Includes all modules matching `.bar` (e.g. `foo.bar`, `a.b.c.barros`)
+- `-etc.`: Excludes all modules from `.etc`
+- `+std,-std.internal`: Includes entire `std`, except for the internal modules
