@@ -15,8 +15,7 @@
 .svn/
 
 # D Scanner binaries
-dscanner
-dscanner.o
+/bin
 
 # Static analysis reports
 dscanner-report.json
@@ -29,9 +28,6 @@ obj
 
 # debug build
 dsc
-
-# Git hash
-githash.txt
 
 # GDB history
 .gdb_history

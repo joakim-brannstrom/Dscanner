@@ -11,25 +11,32 @@ LIB_SRC := \
 	$(shell find inifiled/source/ -name "*.d")\
 	$(shell find libdparse/src/std/experimental/ -name "*.d")\
 	$(shell find libdparse/src/dparse/ -name "*.d")\
-	$(shell find libddoc/src -name "*.d")
+	$(shell find libddoc/src -name "*.d") \
+	$(shell find stdx-allocator/source -name "*.d")
 PROJECT_SRC := $(shell find src/ -name "*.d")
 SRC := $(LIB_SRC) $(PROJECT_SRC)
 INCLUDE_PATHS = \
-	-Iinifiled/source -Isrc\
-	-Ilibdparse/src\
-	-Idsymbol/src -Icontainers/src\
-	-Ilibddoc/src
+	-Isrc \
+	-Iinifiled/source \
+	-Ilibdparse/src \
+	-Idsymbol/src \
+	-Icontainers/src \
+	-Ilibddoc/src \
+	-Istdx-allocator/source
 VERSIONS =
 DEBUG_VERSIONS = -version=dparse_verbose
 DMD_FLAGS = -w -inline -release -O -J. -od${OBJ_DIR} -version=StdLoggerDisableWarning
 DMD_TEST_FLAGS = -w -g -J. -version=StdLoggerDisableWarning
+override LDC_FLAGS += -O5 -release -oq
+override GDC_FLAGS += -O3 -frelease
+SHELL:=/bin/bash
 
 all: dmdbuild
 ldc: ldcbuild
 gdc: gdcbuild
 
 githash:
-	git log -1 --format="%H" > githash.txt
+	git describe --tags > githash.txt
 
 debug:
 	${DC} -w -g -J. -ofdsc ${VERSIONS} ${DEBUG_VERSIONS} ${INCLUDE_PATHS} ${SRC}
@@ -41,11 +48,11 @@ dmdbuild: githash $(SRC)
 
 gdcbuild: githash
 	mkdir -p bin
-	${GDC} -O3 -frelease -obin/dscanner ${VERSIONS} ${INCLUDE_PATHS} ${SRC} -J.
+	${GDC} ${GDC_FLAGS} -obin/dscanner ${VERSIONS} ${INCLUDE_PATHS} ${SRC} -J.
 
 ldcbuild: githash
 	mkdir -p bin
-	${LDC} -O5 -release -oq -of=bin/dscanner ${VERSIONS} ${INCLUDE_PATHS} ${SRC} -J.
+	${LDC} ${LDC_FLAGS} -of=bin/dscanner ${VERSIONS} ${INCLUDE_PATHS} ${SRC} -J.
 
 # compile the dependencies separately, s.t. their unittests don't get executed
 bin/dscanner-unittest-lib.a: ${LIB_SRC}
@@ -68,3 +75,6 @@ clean:
 report: all
 	dscanner --report src > src/dscanner-report.json
 	sonar-runner
+
+release:
+	./release.sh

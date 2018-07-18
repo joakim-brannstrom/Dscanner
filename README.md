@@ -1,4 +1,9 @@
-# D-Scanner [![CI status](https://travis-ci.org/dlang-community/D-Scanner.svg?branch=master)](https://travis-ci.org/dlang-community/D-Scanner/)
+# D-Scanner
+
+[![CI status](https://travis-ci.org/dlang-community/D-Scanner.svg?branch=master)](https://travis-ci.org/dlang-community/D-Scanner/)
+[![Latest version](https://img.shields.io/dub/v/dscanner.svg)](http://code.dlang.org/packages/dscanner)
+[![License](https://img.shields.io/dub/l/dscanner.svg)](http://code.dlang.org/packages/dscanner)
+
 D-Scanner is a tool for analyzing D source code
 
 ### Building and installing
@@ -21,6 +26,14 @@ Under Windows run the tests with `build.bat test`.
 
 ```sh
 > dub fetch dscanner && dub run dscanner
+```
+
+## Installing with Docker
+
+With Docker no installation is required:
+
+```sh
+docker run --rm -v $(pwd):/src dlangcommunity/dscanner
 ```
 
 # Usage
@@ -52,6 +65,11 @@ to resolve the locations of the imported modules.
 
     $ dscanner --imports helloworld.d -I ~/.dvm/compilers/dmd-2.071.1-b2/src/phobos/ -I ~/.dvm/compilers/dmd-2.071.1-b2/src/druntime/src/
 	/home/brian/.dvm/compilers/dmd-2.071.1-b2/src/phobos/std/stdio.d
+
+Remember to pass map the import locations when you use Docker:
+
+	docker run --rm -v $(pwd):/src -v /usr/include/dlang/dmd:/d dlangcommunity/dscanner --imports helloworld.d -I/d
+	/d/std/stdio.d
 
 The "--recursiveImports" option is similar to "--imports", except that it lists
 imports of imports (and so on) recursively. The recursive import option requires
@@ -139,6 +157,10 @@ Note that the "--skipTests" option is the equivalent of changing each
 * Allman brace style
 * Redundant visibility attributes
 * Public declarations without a documented unittest. By default disabled.
+* Asserts without an explanatory message. By default disabled.
+* Indentation of if constraints
+* Check that `@trusted` is not applied to a whole scope. Trusting a whole scope can be a problem when new declarations are added and if they are not verified manually to be trustable.
+* Redundant storage class attributes
 
 #### Wishlist
 
@@ -225,7 +247,7 @@ the given source file to standard output in XML format.
 ```sh
 $ dscanner --ast helloworld.d
 ```
-	
+
 ```xml
 <module>
 <declaration>
