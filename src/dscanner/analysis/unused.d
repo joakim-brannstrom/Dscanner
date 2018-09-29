@@ -199,11 +199,10 @@ final class UnusedVariableCheck : BaseAnalyzer
 
 	override void visit(const UnaryExpression unary)
 	{
-		if (unary.prefix == tok!"*")
-			interestDepth++;
+		const bool interesting = unary.prefix == tok!"*" || unary.unaryExpression !is null;
+		interestDepth += interesting;
 		unary.accept(this);
-		if (unary.prefix == tok!"*")
-			interestDepth--;
+		interestDepth -= interesting;
 	}
 
 	override void visit(const MixinExpression mix)
@@ -324,7 +323,7 @@ final class UnusedVariableCheck : BaseAnalyzer
 		if (parameter.name != tok!"")
 		{
 			immutable bool isRef = !parameter.parameterAttributes
-				.filter!(a => a.among(tok!"ref", tok!"out")).empty;
+				.filter!(a => a.idType.among(tok!"ref", tok!"out")).empty;
 			immutable bool isPtr = parameter.type && !parameter.type
 				.typeSuffixes.filter!(a => a.star != tok!"").empty;
 
@@ -537,6 +536,12 @@ private:
 	bool hasDittos(int decl)
 	{
 		mixin("decl++;");
+	}
+
+	void main()
+	{
+	    const int testValue;
+	    testValue.writeln;
 	}
 
 	}c, sac);
